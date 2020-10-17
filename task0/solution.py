@@ -1,8 +1,6 @@
-import numpy
-from scipy.stats import laplace, norm, t
-import scipy
 import math
 import numpy as np
+from scipy.stats import laplace, norm, t
 from scipy.special import logsumexp
 
 VARIANCE = 2.0
@@ -26,11 +24,6 @@ def generate_sample(n_samples, seed=None):
     return dist.rvs(n_samples, random_state=random_state)
 
 
-""" Solution """
-
-from scipy.special import logsumexp
-
-
 def log_posterior_probs(x):
     """
     Computes the log posterior probabilities for the three hypotheses, given the data x
@@ -43,7 +36,12 @@ def log_posterior_probs(x):
     """
     assert x.ndim == 1
 
-    # TODO: enter your code here
+    log_p = np.zeros(3)
+
+    for i, (p_Hi, Hi) in enumerate(zip(PRIOR_PROBS, HYPOTHESIS_SPACE)):
+        log_p[i] = Hi.logpdf(x).sum() + np.log(p_Hi) \
+                - logsumexp([Hj.logpdf(x).sum() for Hj in HYPOTHESIS_SPACE],
+                        b=PRIOR_PROBS)
 
     assert log_p.shape == (3,)
     return log_p
@@ -51,9 +49,6 @@ def log_posterior_probs(x):
 
 def posterior_probs(x):
     return np.exp(log_posterior_probs(x))
-
-
-""" """
 
 
 def main():

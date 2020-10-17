@@ -1,0 +1,38 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{fullpage}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\title{PAI - Task 0}
+\author{Nikolas Tselepidis}
+\date{October 2020}
+
+\begin{document}
+
+\maketitle
+
+\section{Math}
+
+\begin{equation}
+    P(H_i | X) = \frac{ P(X | H_i) P(H_i) }{ P(X) }
+\end{equation}
+
+\begin{equation}
+    \log{ P(H_i | X) } = \log{ P(X | H_i) } + \log{ P(H_i) } - \log{ P(X) }
+\end{equation}
+
+\begin{equation}
+    \log{ P(X) } = \log{ \sum_{i = 1}^{3} P(X | H_i) P(H_i) } \Rightarrow
+\end{equation}
+
+\begin{equation}
+    \log{ P(X) } = \log{ \sum_{i = 1}^{3} \exp{ \log{ P(X | H_i) P(H_i) } } }
+\end{equation}
+
+\begin{equation}
+    \log{ P(X) } = \text{LSE} \left( \log{ P(X | H_i) } + \log{ P(H_i) } \right)
+\end{equation}
+
+\end{document}

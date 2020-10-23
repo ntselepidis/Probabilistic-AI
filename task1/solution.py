@@ -1,4 +1,8 @@
 import numpy as np
+import torch
+import gpytorch
+import matplotlib.pyplot as plt
+from NystromSolver import NystromSolver
 
 ## Constant for Cost function
 THRESHOLD = 0.5
@@ -57,23 +61,83 @@ class Model():
 
     def __init__(self):
         """
-            TODO: enter your code here
+            Sets kernel type and hyperparameters
         """
-        pass
+        # Setup approximation parameters
+        self.kernel = gpytorch.kernels.RBFKernel()
+        self.m = 300
 
     def predict(self, test_x):
         """
-            TODO: enter your code here
+            Makes predictions.
         """
-        ## dummy code below
-        y = np.ones(test_x.shape[0]) * THRESHOLD - 0.00001
-        return y
+        # Load test_x into a torch tensor
+        test_x = torch.from_numpy(test_x)
+
+        # Compute k_xA
+        k_xA = self.kernel(test_x, self.train_x_perm).evaluate()
+
+        # Compute mean
+        # both train_x and alpha are permuted so multiplication should be fine
+        mu = self.mu_prior + k_xA @ self.alpha
+
+        # Compute covariance (solve with multiple right-hand-sides)
+        beta = self.solver.solve(k_xA.t()) # rhs already permuted
+        # beta = beta[self.iperm, :]
+        cov = self.kernel(test_x).evaluate().diag() - (k_xA @ beta).diag()
+
+        # Postprocess prediction
+        mu[(mu < 0.5).logical_and(mu + 2.5 * torch.sqrt(cov) > 0.5)] = 0.50001
+
+        return mu.detach().numpy()
 
     def fit_model(self, train_x, train_y):
         """
-             TODO: enter your code here
+            Fits GP model.
         """
-        pass
+        # Load train_x and train_y into torch tensors
+        train_x = torch.from_numpy(train_x)
+        train_y = torch.from_numpy(train_y).unsqueeze(1)
+        n = train_x.shape[0]
+
+        # Compute mu and sigma priors based on train_y
+        self.mu_prior = train_y.mean()
+        self.sigma_prior = train_y.std()
+
+        # Setup permutation vector
+        # perm = torch.randperm(n)
+        # Use all data from sparse region in NystromSolver
+        is_in_sparse_region = train_x[:, 0] > -0.5
+        is_in_dense_region = is_in_sparse_region.logical_not()
+        index = torch.arange(n)
+        index_sparse_region = index[is_in_sparse_region]
+        index_dense_region = index[is_in_dense_region]
+        # Shuffle data from dense region
+        index_dense_region = index_dense_region[torch.randperm(is_in_dense_region.sum())]
+        perm = torch.cat((index_sparse_region, index_dense_region), 0)
+
+        # Setup inverse permutation vector
+        # iperm = torch.zeros(n, dtype=perm.dtype)
+        # iperm[perm] = torch.arange(n)
+
+        # Shuffle data for NystromSolver
+        train_x_perm = train_x[perm, :]
+        train_y_perm = train_y[perm, :]
+
+        # Setup NystromSolver
+        solver = NystromSolver(train_x_perm, self.kernel, self.m, self.sigma_prior**2)
+        solver.preprocess()
+
+        # Fit model using Nystrom
+        alpha = solver.solve(train_y_perm - self.mu_prior)
+        # alpha = alpha[iperm, :].squeeze()
+        alpha = alpha.squeeze() # Keep permuted
+
+        # Store data in class
+        self.train_x_perm = train_x_perm
+        # self.iperm = iperm
+        self.solver = solver
+        self.alpha = alpha
 
 
 def main():
@@ -92,6 +156,12 @@ def main():
     prediction = M.predict(test_x)
 
     print(prediction)
+
+    # Plot predictions
+    plt.scatter(train_x[:, 0], train_x[:, 1], c=train_y, marker='o')
+    plt.scatter(test_x[:, 0], test_x[:, 1], c=prediction, marker='x')
+    plt.colorbar()
+    plt.show()
 
 
 if __name__ == "__main__":

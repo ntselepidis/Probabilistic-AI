@@ -133,7 +133,7 @@ class BayesianLayer(torch.nn.Module):
 
     def forward(self, inputs):
         # TODO: enter your code here
-        shrink = 0.1
+        shrink = 0.15
 
         weight = torch.distributions.Normal(self.weight_mu, shrink * self.weight_logsigma.exp())
 
@@ -223,7 +223,7 @@ class BayesNet(torch.nn.Module):
         outputs = torch.zeros(num_forward_passes, batch_size, 10)
         for i in range(num_forward_passes):
             outputs[i] = self.forward(x)
-        probs = F.softmax(outputs.mean(0), dim=-1)
+        probs = F.softmax(outputs, dim=-1).mean(0)
 
         assert probs.shape == (batch_size, 10)
         return probs
